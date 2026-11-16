@@ -60,6 +60,32 @@
 <div id="toast"></div>
 <noscript><div style="position:fixed;inset:0;display:grid;place-items:center;color:#fff;background:#111;font:18px sans-serif">ETMLShoot nécessite JavaScript et WebGL 2.</div></noscript>
 
+<script>
+// Diagnostic de démarrage : toute erreur avant l'affichage du menu est montrée à l'écran
+// (sinon le joueur ne voit qu'un écran noir).
+(function () {
+  function show(msg) {
+    if (window.__started) return;
+    var d = document.getElementById('bootError');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = 'bootError';
+      d.style.cssText = 'position:fixed;inset:0;z-index:99;background:#0b0d0f;color:#e8eaed;font:15px/1.5 sans-serif;padding:40px;overflow:auto;white-space:pre-wrap';
+      document.body.appendChild(d);
+    }
+    d.textContent += msg + '\n\n';
+  }
+  window.addEventListener('error', function (e) {
+    if (e.target && e.target.tagName === 'SCRIPT') show('Impossible de charger le script : ' + e.target.src + '\nLe serveur tourne-t-il toujours ? Avez-vous lancé « npm install » ?');
+    else show('Erreur au démarrage : ' + (e.message || e.error) + (e.filename ? '\n' + e.filename + ':' + e.lineno : ''));
+  }, true);
+  window.addEventListener('unhandledrejection', function (e) { show('Erreur au démarrage : ' + ((e.reason && e.reason.stack) || e.reason)); });
+  var c = document.createElement('canvas');
+  if (!c.getContext('webgl2')) show('Votre navigateur ne fournit pas WebGL 2, nécessaire au jeu.\nActivez l\'accélération matérielle (Chrome/Edge : Paramètres → Système → « Utiliser l\'accélération graphique »), mettez à jour le pilote de la carte graphique, puis redémarrez le navigateur.');
+  if (!HTMLScriptElement.supports || !HTMLScriptElement.supports('importmap')) show('Navigateur trop ancien : utilisez une version récente de Chrome, Edge ou Firefox.');
+  setTimeout(function () { if (!window.__started) show('Le jeu ne démarre pas (aucun menu après 15 s). Ouvrez la console (F12, onglet « Console ») et copiez les lignes en rouge.'); }, 15000);
+})();
+</script>
 <script type="module" src="/js/main.js"></script>
 </body>
 </html>

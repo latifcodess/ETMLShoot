@@ -224,6 +224,7 @@ function showConnect(message) {
 }
 
 async function connect() {
+  window.__started = true;   // le module est chargé : le diagnostic de démarrage peut se taire
   try {
     await net.connect();
     net.send({ t: 'hello', name: playerName() });
