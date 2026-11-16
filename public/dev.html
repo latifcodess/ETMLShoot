@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>ETMLShoot — visionneuse de carte (outil de développement)</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block;width:100vw;height:100vh}#log{position:fixed;left:8px;top:8px;color:#9f9;font:12px monospace;white-space:pre;text-shadow:0 0 3px #000}</style>
+<script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
+</head>
+<body>
+<canvas id="c"></canvas><div id="log"></div>
+<script type="module">
+// Visionneuse autonome : /dev.html?map=depot&cam=x,y,z&look=x,y,z&q=high
+import * as THREE from 'three';
+import { Renderer } from '/js/gfx/renderer.js';
+import { buildWorldMesh, makeSky, makeLighting, makeBarrel, makePickup } from '/js/gfx/worldmesh.js';
+import { getMap, createWorld } from '/shared/maps/index.js';
+import { Soldier, Ragdoll, SEVER } from '/js/gfx/character.js';
+import { W, WEAPONS, createWeaponState, giveWeapon } from '/shared/weapons.js';
+import { ViewModel } from '/js/gfx/viewmodel.js';
+import { sunDirection } from '/js/gfx/worldmesh.js';
+
+const q = new URLSearchParams(location.search);
+const log = document.getElementById('log');
+const say = (s) => { log.textContent += s + '\n'; };
+window.__error = null;
+window.addEventListener('error', (e) => { window.__error = String(e.message); say('ERREUR ' + e.message); });
+window.addEventListener('unhandledrejection', (e) => { window.__error = String(e.reason && e.reason.stack || e.reason); say('ERREUR ' + window.__error); });
+
+const map = getMap(q.get('map') || 'depot');
+const world = createWorld(map);
+const R = new Renderer(document.getElementById('c'));
+R.setQuality(q.get('q') || 'high');
+R.setExposure(map.env.exposure);
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(new THREE.Color().setHex(map.env.fogColor, THREE.SRGBColorSpace), map.env.fogDensity);
+const camera = new THREE.PerspectiveCamera(72, R.aspect, 0.08, 1500);
+const sky = makeSky(map.env);
+scene.add(sky);
+const t0 = performance.now();
+const mesh = await buildWorldMesh(map, world, R.quality);
+scene.add(mesh);
+say(`monde : ${(performance.now() - t0).toFixed(0)} ms`);
+const lighting = makeLighting(scene, map, R.quality);
+scene.environment = R.makeEnvironment(sky);
+scene.environmentIntensity = 0.45;
+for (const b of map.barrels) { const m = makeBarrel(); m.position.set(b.x, b.y, b.z); scene.add(m); }
+for (const p of map.pickups) { const m = makePickup(p.type); m.position.set(p.x, p.y, p.z); scene.add(m); }
+
+// Rangée de personnages de démonstration : ?chars=x,y,z (point de départ, alignés vers +X)
+if (q.get('chars')) {
+  const [cx, cy, cz] = q.get('chars').split(',').map(Number);
+  const demo = [
+    ['alpha', W.AR, {}], ['bravo', W.SMG, { vz: -5 }], ['ffa0', W.SHOTGUN, { crouch: true }], ['ffa1', W.SNIPER, { pitch: 0.5 }],
+    ['grunt', W.AR, { vx: 4 }], ['rusher', W.SMG, { vz: -7.4, sprint: true }], ['heavy', W.LMG, { scale: 1.14, pitch: -0.4 }], ['marksman', W.SNIPER, { crouch: true }],
+    ['grenadier', W.SHOTGUN, { reload: true }], ['juggernaut', W.MINIGUN, { scale: 1.34 }], ['ffa2', W.PISTOL, {}], ['ffa3', W.KNIFE, { vz: -3 }],
+    ['alpha', W.RPG, {}],
+  ];
+  demo.forEach(([look, weapon, o], i) => {
+    const sol = new Soldier(look, o.scale || 1);
+    sol.setWeapon(weapon);
+    scene.add(sol.root);
+    sol.phase = 1.1 + i * 0.7;
+    const st = { x: cx + i * 1.5, y: cy, z: cz, yaw: 0, pitch: o.pitch || 0, vx: o.vx || 0, vz: o.vz || 0, crouch: !!o.crouch, ground: true, sprint: !!o.sprint, reload: !!o.reload, ads: false };
+    for (let k = 0; k < 40; k++) { const ph = sol.phase; sol.update(1 / 30, st); sol.phase = ph; }
+  });
+  // trois ragdolls : entier, décapité, démembré
+  const mk = (x, sever, look, imp) => {
+    const sol = new Soldier(look, 1);
+    sol.setWeapon(W.AR);
+    sol.update(1 / 30, { x, y: cy, z: cz + 3.2, yaw: 0, pitch: 0, vx: 0, vz: 0, crouch: false, ground: true });
+    const r = new Ragdoll();
+    scene.add(r.root);
+    r.start(sol, { x: 0, y: 0, z: 0 }, imp, sever, false);
+    for (let k = 0; k < (+(q.get('rag') || 150)); k++) r.step(1 / 60, world);
+  };
+  mk(cx + 1, 0, 'grunt', { x: 1.5, y: 1, z: 4 });
+  mk(cx + 5, SEVER.HEAD, 'bravo', { x: -1, y: 2, z: 3 });
+  mk(cx + 9, SEVER.HEAD | SEVER.ARM_L | SEVER.ARM_R | SEVER.LEG_L | SEVER.LEG_R, 'alpha', { x: 0, y: 5, z: 2 });
+}
+// Banc d'essai de l'arme en vue subjective : ?vm=<idArme>&ads=0..1&reload=0..1&sprint=1&fire=1
+let view = null, vmState = null;
+if (q.get('vm') !== null) {
+  const id = +q.get('vm');
+  view = new ViewModel(map.env);
+  view.scene.environment = scene.environment; view.scene.environmentIntensity = 0.5;
+  view.setWeapon(id);
+  const ws = createWeaponState();
+  giveWeapon(ws, id);
+  ws.cur = WEAPONS[id].slot;
+  ws.ads = +(q.get('ads') || 0);
+  if (q.get('reload')) ws.reloadT = WEAPONS[id].reload * (1 - +q.get('reload'));
+  if (q.get('melee')) ws.meleeT = 0.5 * (1 - +q.get('melee'));
+  vmState = { ws, def: WEAPONS[id], speed: q.get('sprint') ? 7 : 0, onGround: true, sprinting: !!q.get('sprint'), crouching: false, dyaw: 0, dpitch: 0, shade: +(q.get('shade') || 1), camQuat: camera.quaternion, sunDir: sunDirection(map.env), aspect: R.aspect };
+}
+const num = (s, d) => (s ? s.split(',').map(Number) : d);
+const cam = num(q.get('cam'), [0, 14, 34]), look = num(q.get('look'), [0, 2, 0]);
+const orbit = !q.get('cam');
+let last = performance.now(), frames = 0;
+const dir = new THREE.Vector3();
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (orbit) { const a = now * 0.00012; camera.position.set(Math.sin(a) * 38, 13, Math.cos(a) * 38); }
+  else camera.position.set(cam[0], cam[1], cam[2]);
+  camera.lookAt(look[0], look[1], look[2]);
+  camera.aspect = R.aspect; camera.updateProjectionMatrix();
+  camera.getWorldDirection(dir);
+  lighting.update(camera.position, dir);
+  sky.material.uniforms.uTime.value = now / 1000;
+  if (view) {
+    camera.updateMatrixWorld();
+    vmState.aspect = R.aspect;
+    for (let k = 0; k < (frames === 0 ? 40 : 1); k++) view.update(1 / 30, vmState);       // laisse les ressorts se stabiliser
+    if (q.get('fire') && frames === 1) { view.fire(vmState.def); view.update(0.012, vmState); }
+  }
+  R.render(scene, camera, view ? view.scene : null, view ? view.camera : null, dt);
+  frames++;
+  const limit = +(q.get('n') || 0);
+  if (frames === (limit || 3)) { window.__ready = true; say(`prêt — image en ${(performance.now() - now).toFixed(0)} ms`); }
+  if (!limit || frames < limit) requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
