@@ -76,7 +76,18 @@
     d.textContent += msg + '\n\n';
   }
   window.addEventListener('error', function (e) {
-    if (e.target && e.target.tagName === 'SCRIPT') show('Impossible de charger le script : ' + e.target.src + '\nLe serveur tourne-t-il toujours ? Avez-vous lancé « npm install » ?');
+    if (e.target && e.target.tagName === 'SCRIPT') {
+      show('Un fichier du jeu n\'a pas pu être chargé. Vérification…');
+      // on teste les fichiers clés pour désigner le coupable
+      var probes = ['/js/main.js', '/shared/constants.js', '/vendor/three/build/three.module.js', '/vendor/three/build/three.core.js', '/vendor/three/examples/jsm/postprocessing/EffectComposer.js'];
+      Promise.all(probes.map(function (u) { return fetch(u, { cache: 'no-store' }).then(function (r) { return [u, r.status]; }, function () { return [u, 'injoignable']; }); })).then(function (res) {
+        var bad = res.filter(function (r) { return r[1] !== 200; });
+        if (!bad.length) { show('Tous les fichiers clés répondent. Ouvrez la console (F12) et copiez les lignes en rouge.'); return; }
+        show('Fichiers en erreur :\n' + bad.map(function (r) { return '  ' + r[0] + ' → ' + r[1]; }).join('\n'));
+        if (bad.some(function (r) { return r[0].indexOf('/vendor/three/') === 0; })) show('La bibliothèque 3D est absente : arrêtez le serveur (Ctrl+C), lancez « npm install » dans le dossier du projet, puis « npm start ».');
+        else if (bad.some(function (r) { return r[1] === 'injoignable'; })) show('Le serveur ne répond plus : relancez « npm start ».');
+      });
+    }
     else show('Erreur au démarrage : ' + (e.message || e.error) + (e.filename ? '\n' + e.filename + ':' + e.lineno : ''));
   }, true);
   window.addEventListener('unhandledrejection', function (e) { show('Erreur au démarrage : ' + ((e.reason && e.reason.stack) || e.reason)); });

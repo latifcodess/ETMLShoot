@@ -96,6 +96,7 @@ function serveStatic(req, res) {
     res.end(req.method === 'HEAD' ? undefined : body);
     return;
   }
+  if (DEV) console.warn(`[http] 404 ${pathname}`);
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('404 — introuvable');
 }
 
@@ -340,6 +341,9 @@ setInterval(() => {
   if (slowTicks > 0) { console.warn(`[perf] ${slowTicks} tick(s) lent(s) sur la dernière minute`); slowTicks = 0; }
 }, 60000).unref();
 
+if (!fs.existsSync(path.join(ROOT, 'node_modules', 'three', 'build', 'three.module.js'))) {
+  console.error('ERREUR : la bibliothèque « three » est introuvable. Lancez « npm install » dans le dossier du projet, puis relancez le serveur.');
+}
 setupDefaultRooms();
 server.listen(PORT, HOST, () => {
   console.log(`ETMLShoot v${VERSION} — ${SERVER_NAME}`);
