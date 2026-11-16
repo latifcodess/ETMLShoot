@@ -10,7 +10,7 @@ import { getMap, createWorld, MAP_LIST } from '../public/shared/maps/index.js';
 import { createMoveState, createMoveInput, stepMove, eyeHeight } from '../public/shared/physics.js';
 import { SIM_DT, BTN, SLOT_SHIFT, TICK_MS, HULL } from '../public/shared/constants.js';
 import { W, SLOT, WEAPONS } from '../public/shared/weapons.js';
-import { chestHeight } from '../public/shared/hitbox.js';
+import { chestHeight } from '../public/shared/anatomy.js';
 import { EV, HF } from '../public/shared/protocol.js';
 import { decodeSnapshot, encodeInput, quantYaw, quantPitch, dequantYaw, Predictor, ServerClock, SnapshotBuffer } from '../public/js/netcode.js';
 import { Room } from '../server/room.js';

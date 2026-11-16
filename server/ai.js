@@ -9,7 +9,7 @@ import { wrapAngle, clamp } from '../public/shared/mathx.js';
 import { W, WEAPONS, SLOT, WEV, GRENADE } from '../public/shared/weapons.js';
 import { KIND } from '../public/shared/actors.js';
 import { eyeHeight, createMoveInput } from '../public/shared/physics.js';
-import { chestHeight, headHeight } from '../public/shared/hitbox.js';
+import { chestHeight, headHeight } from '../public/shared/anatomy.js';
 import { spawnGrenade } from './combat.js';
 
 const deg = Math.PI / 180;

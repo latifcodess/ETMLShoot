@@ -3,7 +3,7 @@
 import { MAX_REWIND_MS, HITK, MAT_SURF, SURF, FACE_NORMALS } from '../public/shared/constants.js';
 import { shotDir, aimDir, clamp } from '../public/shared/mathx.js';
 import { W, GRENADE, MELEE, WEAPONS } from '../public/shared/weapons.js';
-import { rayVsActor, rayCylinder, ZONE, chestHeight, headHeight } from '../public/shared/hitbox.js';
+import { rayVsActor, rayCylinder, ZONE, chestHeight, headHeight } from '../public/shared/anatomy.js';
 import { eyeHeight } from '../public/shared/physics.js';
 import { EV, HF, NO_ACTOR } from '../public/shared/protocol.js';
 import { makeHit } from '../public/shared/world.js';

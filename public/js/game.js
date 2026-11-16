@@ -9,7 +9,7 @@ import { KINDS, KIND } from '../shared/actors.js';
 import { EV, HF, NO_ACTOR } from '../shared/protocol.js';
 import { shotDir, lerpAngle, clamp, aimDir } from '../shared/mathx.js';
 import { eyeHeight } from '../shared/physics.js';
-import { rayVsActor, chestHeight } from '../shared/hitbox.js';
+import { rayVsActor, chestHeight } from '../shared/anatomy.js';
 import { makeHit } from '../shared/world.js';
 import { decodeSnapshot, encodeInput, quantYaw, quantPitch, dequantYaw, dequantPitch, Predictor, ServerClock, SnapshotBuffer } from './netcode.js';
 import { buildWorldMesh, makeSky, makeLighting, makeBarrel, makePickup } from './gfx/worldmesh.js';
